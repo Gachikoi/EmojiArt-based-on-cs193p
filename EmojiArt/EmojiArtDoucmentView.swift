@@ -117,7 +117,7 @@ struct EmojiArtDoucmentView: View {
     }
 }
 
-#Preview {
+#Preview(traits: .landscapeRight) {
     EmojiArtDoucmentView(doucment: EmojiArtDoucment())
         .environmentObject(PaletteStore(name: "preview1"))
 }

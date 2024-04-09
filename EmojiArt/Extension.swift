@@ -33,6 +33,21 @@ extension String{
             }
         }
     }
+    
+    mutating func remove(_ emoji:Character){
+       removeAll(where: {$0 == emoji})
+    }
+}
+
+extension Character{
+    var isEmoji:Bool{
+        if let firstScalar=self.unicodeScalars.first,firstScalar.properties.isEmoji{
+            return (firstScalar.value >= 0x238d || unicodeScalars.count > 1)
+        }
+        else{
+            return false
+        }
+    }
 }
 
 struct AnimatedActionButton:View {
