@@ -18,6 +18,7 @@ extension CGOffset{
         lhs=lhs+rhs
     }
 }
+
 // find center of CGRect
 extension CGRect{
     var center:CGPoint{
@@ -50,23 +51,98 @@ extension Character{
     }
 }
 
+extension Collection {
+    // this will crash if after >= endIndex
+    func suffix(after: Self.Index) -> Self.SubSequence {
+        suffix(from: index(after: after))
+    }
+}
+
+
+struct UndoButton:View {
+    @Environment(\.undoManager) private var undoManager
+    
+    @State private var showUndoPopover=false
+    @State private var showRedoPopover=false
+    
+    var body: some View {
+        if let undoManager {
+            HStack{
+                Image(systemName: "arrow.uturn.backward.circle")
+                    .foregroundColor(.accentColor)
+                    .onTapGesture {
+                        undoManager.undo()
+                    }
+                    .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
+                        showUndoPopover=true
+                        print(showUndoPopover)
+                    }
+                    .popover(isPresented: $showUndoPopover){
+                        VStack{
+                            if !undoManager.canUndo {
+                                Text("Nothing to Undo")
+                            }else{
+                                Button{
+                                    undoManager.undo()
+                                    showUndoPopover=false
+                                }label: {
+                                    Text("Undo "+undoManager.undoActionName)
+                                }
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: 280)
+                    }
+                Image(systemName: "arrow.uturn.forward.circle")
+                    .foregroundColor(.accentColor)
+                    .onTapGesture {
+                        undoManager.redo()
+                    }
+                    .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
+                        showRedoPopover=true
+                        print(showRedoPopover)
+                    }
+                    .popover(isPresented: $showRedoPopover){
+                        VStack{
+                            if !undoManager.canRedo {
+                                Text("Nothing to Redo")
+                            }else{
+                                Button{
+                                    undoManager.redo()
+                                    showRedoPopover=false
+                                }label: {
+                                    Text("Redo "+undoManager.redoActionName)
+                                }
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: 280)
+                    }
+            }
+        }
+    }
+}
+
 struct AnimatedActionButton:View {
     var title:String?
     var systemImage:String?
     var role:ButtonRole?
-    let action:()->Void
+    let action:(()->Void)?
     
-    init(title: String? = nil, systemImage: String? = nil, role: ButtonRole? = nil, action: @escaping () -> Void) {
+    init(title: String? = nil, systemImage: String? = nil, role: ButtonRole? = nil, action: ( () -> Void)? = nil) {
         self.title = title
         self.systemImage = systemImage
         self.role = role
         self.action = action
     }
+
     
     var body: some View {
         Button(role:role){
             withAnimation{
-                action()
+                if let action{
+                    action()
+                }
             }
         }label: {
             if let title,let systemImage{
@@ -161,12 +237,5 @@ extension URL {
         }
         // not a data scheme or the data doesn't seem to be a base64 encoded image
         return nil
-    }
-}
-
-extension Collection {
-    // this will crash if after >= endIndex
-    func suffix(after: Self.Index) -> Self.SubSequence {
-        suffix(from: index(after: after))
     }
 }

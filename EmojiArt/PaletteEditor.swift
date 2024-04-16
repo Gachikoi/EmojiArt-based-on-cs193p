@@ -13,9 +13,9 @@ struct PaletteEditor: View {
     @State private var emojisToAdd=""
     
 
-    private let emojiFont=Font.system(size: 40)
-    private let sectionTextFont=Font.system(size: 35)
-    private let sectionHeaderFont=Font.system(size: 20)
+    @ScaledMetric private var emojiSize=40
+    @ScaledMetric private var sectionTextSize=35
+    @ScaledMetric private var sectionHeaderSize=20
     
     @State private var showSection=false
     @State private var showAlertOfInputNonEmojiElement=false
@@ -32,14 +32,14 @@ struct PaletteEditor: View {
         Form{
             Section{
                 TextField(palette.name,text: $palette.name)
-                    .font(sectionTextFont)
+                    .font(.system(size: sectionTextSize))
                     .focused($focused,equals: Focused.name)
             }header:{
                 headerOfSectionOfNameView
             }
             Section{
                 TextField("Add Emojis Here", text: $emojisToAdd)
-                    .font(sectionTextFont)
+                    .font(.system(size: sectionTextSize))
                     .focused($focused,equals: Focused.add)
                 emojiDisplay
             }header: {
@@ -69,7 +69,7 @@ struct PaletteEditor: View {
             }
         }
         .onDisappear{
-            if palette.name.isEmpty && !palette.emojis.isEmpty{
+            if palette.name.isEmpty && palette.emojis.isEmpty{
                 palette.name="Default"+" "+getCurrentTime()
             }
         }
@@ -85,12 +85,12 @@ struct PaletteEditor: View {
     
     var headerOfSectionOfNameView : some View {
         Text("name")
-            .font(sectionHeaderFont)
+            .font(.system(size: sectionHeaderSize))
     }
     
     var headerOfSectionOfEmojisView : some View {
         Text("emojis")
-            .font(sectionHeaderFont)
+            .font(.system(size: sectionHeaderSize))
     }
     
     var emojiDisplay:some View{
@@ -100,7 +100,7 @@ struct PaletteEditor: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 40))]){
                 ForEach(palette.emojis.uniqued.map(String.init),id:\.self){emoji in
                     Text(emoji)
-                        .font(emojiFont)
+                        .font(.system(size: emojiSize))
                         .onTapGesture {
                             withAnimation{
                                 palette.emojis.remove(emoji.first!)

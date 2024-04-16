@@ -10,10 +10,10 @@ import SwiftUI
 struct PaletteChooser:View {
     @EnvironmentObject var store:PaletteStore
 
-    @State private var showEdit=false
+    @State private var showEditor=false
     @State private var showList=false
     
-    private let paletteNameSize:CGFloat=30
+    @ScaledMetric private var paletteNameSize:CGFloat=30
 
     var body: some View {
         HStack{
@@ -28,7 +28,7 @@ struct PaletteChooser:View {
         }
         .padding(.horizontal)
         .clipped()
-        .sheet(isPresented: $showEdit){
+        .sheet(isPresented: $showEditor){
             PaletteEditor(palette:$store.palettes[store.paletteIndex])
                 .font(nil)
                 .onDisappear{
@@ -36,6 +36,12 @@ struct PaletteChooser:View {
                         store.palettes.remove(at: store.paletteIndex)
                     }
                 }
+        }
+        .sheet(isPresented: $showList){
+            NavigationStack{
+                PaletteList()
+                    .font(nil)
+            }
         }
     }
     
@@ -47,10 +53,10 @@ struct PaletteChooser:View {
             gotoButton
             AnimatedActionButton(title:"New",systemImage:"plus"){
                 store.insert(name: "", emojis: "")
-                showEdit=true
+                showEditor=true
             }
             AnimatedActionButton(title: "Edit", systemImage: "pencil"){
-                showEdit=true
+                showEditor=true
             }
             AnimatedActionButton(title: "List", systemImage: "list.bullet.rectangle.portrait"){
                 showList=true
@@ -73,6 +79,7 @@ struct PaletteChooser:View {
         }label:{
             Label("Go To", systemImage: "text.insert")
         }
+        .menuActionDismissBehavior(.disabled)
     }
     
     var ScrollingEmojis:some View{

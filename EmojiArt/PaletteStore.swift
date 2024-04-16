@@ -4,6 +4,7 @@
 //
 //  Created by 落殇 on 2024/3/20.
 //
+//  Remained bug: when we use PaletteStoreManagerView, open PaletteList, select a palette, then "new palette", the view don't show the new palette's PaletteEditor View. Instead, first palette's PaletteEditor view appears wrongly and looks not right. We will see the new empty palette sparkle a while and seems being deleted immediately.
 
 import SwiftUI
 
@@ -25,49 +26,54 @@ extension UserDefaults{
     }
 }
 
-class PaletteStore:ObservableObject{
-    let name:String
+class PaletteStore:ObservableObject,Identifiable,Codable{
+    var name:String
+    lazy var id=name
     
     var palettes:[Palette]{
-         get{
-             UserDefaults.standard.palettes(forKey: name)
-         }
-         set{
-             if !newValue.isEmpty{
-                 UserDefaults.standard.set(newValue, forKey: name)
-                 objectWillChange.send()
-             }
-             print(newValue)
-         }
+        get{
+            UserDefaults.standard.palettes(forKey: name)
+        }
+        set{
+            if !newValue.isEmpty{
+                UserDefaults.standard.set(newValue, forKey: name)
+                objectWillChange.send()
+            }
+        }
     }
+    
+    private var _paletteIndex = 0{
+        didSet{
+            objectWillChange.send()
+        }
+    }
+    
+    var paletteIndex: Int {
+        get { boundsCheckedPaletteIndex(_paletteIndex) }
+        set { _paletteIndex = boundsCheckedPaletteIndex(newValue) }
+    }
+    
+    
+    private func boundsCheckedPaletteIndex(_ index: Int) -> Int {
+        var index = index % palettes.count
+        if index < 0 {
+            index += palettes.count
+        }
+        return index
+    }
+    
+    static let builtins=[
+        PaletteStore(name: "Main"),
+        PaletteStore(name: "Test1"),
+        PaletteStore(name: "Gach1koi"),
+        PaletteStore(name: "Shining"),
+        PaletteStore(name: "Backup")
+    ]
     
     init(name: String) {
         self.name = name
         if palettes.isEmpty{
             palettes=Palette.builtins
-        }
-    }
-    
-    @Published private var _paletteIndex=0
-    
-    var paletteIndex:Int{
-        set{
-            if newValue>=palettes.count{
-                _paletteIndex=newValue%palettes.count
-            }
-            if newValue<0{
-                _paletteIndex = -newValue
-            }
-            _paletteIndex=newValue
-        }
-        get{
-            if _paletteIndex>=palettes.count{
-                return _paletteIndex%palettes.count
-            }
-            if _paletteIndex<0{
-                return  -_paletteIndex
-            }
-            return _paletteIndex
         }
     }
     
@@ -78,8 +84,8 @@ class PaletteStore:ObservableObject{
     // by first removing/replacing any Palette with the same id that is already in palettes
     // it does not "remedy" existing duplication, it just does not "cause" new duplication
     
-    func insert(_ palette: Palette, at insertionIndex: Int? = nil) { // "at" default is cursorIndex
-        let insertionIndex = insertionIndex ?? paletteIndex
+    func insert(_ palette: Palette, at insertionIndex: Int? = nil) { // "at" default is paletteIndex
+        let insertionIndex = boundsCheckedPaletteIndex(insertionIndex ?? paletteIndex)
         if let index = palettes.firstIndex(where: { $0.id == palette.id }) {
             palettes.move(fromOffsets: IndexSet([index]), toOffset: insertionIndex)
             palettes.replaceSubrange(insertionIndex...insertionIndex, with: [palette])
@@ -88,8 +94,8 @@ class PaletteStore:ObservableObject{
         }
     }
     
-    func insert(name: String, emojis: String) {
-        insert(Palette(name: name, emojis: emojis), at: nil)
+    func insert(name: String, emojis: String, at index: Int? = nil) {
+        insert(Palette(name: name, emojis: emojis), at: index)
     }
     
     func append(_ palette: Palette) { // at end of palettes
@@ -107,5 +113,16 @@ class PaletteStore:ObservableObject{
     
     func append(name: String, emojis: String) {
         append(Palette(name: name, emojis: emojis))
+    }
+}
+
+
+extension PaletteStore : Hashable{
+    static func == (lhs: PaletteStore, rhs: PaletteStore) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }

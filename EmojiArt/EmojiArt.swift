@@ -12,6 +12,7 @@ typealias Emoji=EmojiArt.Emoji
 struct EmojiArt:Codable{
     private(set) var emojis=[Emoji]()
     private(set) var background:URL?
+    var id=UUID()
     
     struct Emoji:Identifiable,Codable{
         var string:String
