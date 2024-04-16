@@ -4,7 +4,6 @@
 //
 //  Created by 落殇 on 2024/3/20.
 //
-//  Remained bug: when we use PaletteStoreManagerView, open PaletteList, select a palette, then "new palette", the view don't show the new palette's PaletteEditor View. Instead, first palette's PaletteEditor view appears wrongly and looks not right. We will see the new empty palette sparkle a while and seems being deleted immediately.
 
 import SwiftUI
 

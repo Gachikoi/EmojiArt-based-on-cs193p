@@ -13,6 +13,7 @@ extension UTType {
 }
 
 class EmojiArtDocument:ReferenceFileDocument{
+    //MARK: - Persistence
     func snapshot(contentType: UTType) throws -> Data {
         try JSONEncoder().encode(emojiArt)
     }
@@ -33,16 +34,22 @@ class EmojiArtDocument:ReferenceFileDocument{
         }
     }
     
-    // firstly initiaize an EmojiArtDocument.
-    init(){
-        
+    //MARK: - firstly initiaize an EmojiArtDocument.
+    init(){}
+    
+    //MARK: - injected UndoManager
+    func injectUndoManager(_ undoManager: UndoManager?) {
+        self.undoManager = undoManager
     }
     
+    private var undoManager:UndoManager?
+    
+    //MARK: - Variables
     @Published private var emojiArt=EmojiArt(){
-        didSet{
+        didSet {
             if emojiArt.background != oldValue.background {
                 Task{
-                    await fetchBackground()
+                    await fetchBackgroundImage()
                 }
             }
         }
@@ -56,130 +63,104 @@ class EmojiArtDocument:ReferenceFileDocument{
         emojiArt.id
     }
     
-    @Published var showSetBackgroundAlert=false
+    @Published var backgroundImage:UIImage?
+    @Published var backgroundFetchStatus=BackgroundFetchStatus.none
     
-    @Published var background=Background.none{
-        didSet{
-            switch oldValue {
-            case .found:
-                oldBackground=oldValue
-            default:
-                break
-            }
-            switch background {
-            case .failed:
-                setBackground(oldBackground.url)
-            default:
-                break
-            }
-        }
-    }
-    
-    @Published var oldBackground=Background.none
-    
-    // MARK: - background fetching
-    
-    enum Background{
-        case none
-        case fetching(URL)
-        case found(UIImage,URL)
-        case failed(String)
-        
-        var uiImage:UIImage?{
-            switch self {
-            case .found(let uiImage,_):
-                return uiImage
-            default :
-                return nil
-            }
-        }
-        
-        var url:URL?{
-            switch self {
-            case .found( _,let url):
-                return url
-            default :
-                return nil
-            }
-        }
-        
-        var isFetching:Bool{
-            switch self {
-            case .fetching:
-                return true
-            default :
-                return false
-            }
-        }
-        
-        var failedReason:String?{
-            switch self {
-            case .failed(let reason):
-                return reason
-            default:
-                return nil
-            }
-        }
-    }
-    
-    enum FetchingError:Error{
-        case FetchUIImageError
-    }
-    
+    // MARK: - Background Image
     @MainActor
-    func fetchBackground() async {
-        if let url=emojiArt.background {
-            background = .fetching(url)
+    private func fetchBackgroundImage() async {
+        switch emojiArt.background {
+        case .blank:
+            backgroundImage=nil
+            backgroundFetchStatus = .none
+        case .url(let url):
+            backgroundFetchStatus = .fetching(url)
             do{
-                let uiImage=try await fetchUIImage(url:url)
-                if url==emojiArt.background {
-                    background = .found(uiImage,url)
+                let image=try await fetchUIImage(from: url)
+                if url == emojiArt.background.url{
+                    backgroundImage=image
+                    backgroundFetchStatus = .found(image)
                 }
             }catch{
-                background = .failed(error.localizedDescription)
+                backgroundFetchStatus = .failed(error.localizedDescription)
             }
-        }else {
-            background = .none
+        case .imageData(let data):
+            backgroundImage=UIImage(data: data)
+            backgroundFetchStatus = .found(backgroundImage!)
         }
     }
     
-    func fetchUIImage(url:URL) async throws -> UIImage{
-        let ( data , _ ) = try await URLSession.shared.data(from: url)
-        if let uiImage = UIImage(data: data){
+    private func fetchUIImage(from url: URL) async throws -> UIImage {
+        let (data, _) = try await URLSession.shared.data(from: url)
+        if let uiImage = UIImage(data: data) {
             return uiImage
-        }else {
-            throw FetchingError.FetchUIImageError
+        } else {
+            throw FetchError.badImageData
         }
     }
+    
+    enum FetchError: Error {
+        case badImageData
+    }
+    
+    enum BackgroundFetchStatus{
+        case none
+        case fetching(URL)
+        case found(UIImage)
+        case failed(String)
+        
+        var uiImage: UIImage? {
+            switch self {
+            case .found(let uiImage): return uiImage
+            default: return nil
+            }
+        }
+        
+        var urlBeingFetched: URL? {
+            switch self {
+            case .fetching(let url): return url
+            default: return nil
+            }
+        }
+        
+        var isFetching: Bool { urlBeingFetched != nil }
+        
+        var failureReason: String? {
+            switch self {
+            case .failed(let reason): return reason
+            default: return nil
+            }
+        }
+    }
+    
     
     //MARK: - Undo
-    func undoablyPerform(_ action:String,with undoManager:UndoManager? = nil,doit:()->Void){
+    func undoablyPerform(_ action:String,doit:()->Void){
         let oldEmojiArt = emojiArt
         doit()
         //这里target自动使用unowned进行self的引用，帮助我们避免了循环强引用
-        undoManager?.registerUndo(withTarget: self){ myself in
-            self.undoablyPerform(action, with: undoManager){
+        self.undoManager?.registerUndo(withTarget: self){ myself in
+            self.undoablyPerform(action){
                 self.emojiArt=oldEmojiArt
             }
         }
-        undoManager?.setActionName(action)
+        self.undoManager?.setActionName(action)
     }
-    
     //MARK: - Intent
-    func addEmoji(_ emoji:String,at position:Emoji.Position,size:CGFloat,with undoManager:UndoManager? = nil){
-        undoablyPerform("Add \(emoji)", with: undoManager){
+    func addEmoji(_ emoji:String,at position:Emoji.Position,size:CGFloat){
+        undoablyPerform("Add \(emoji)"){
             emojiArt.addEmoji(emoji,at: position,size: Int(size))
         }
     }
     
-    func removeEmoji(_ emoji:String,with undoManager:UndoManager? = nil){
-        undoablyPerform("Remove \(emoji)", with: undoManager){
+    func removeEmoji(_ emoji:String){
+        undoablyPerform("Remove \(emoji)"){
             emojiArt.removeEmoji(emoji)
         }
     }
     
-    func setBackground(_ background:URL?,with undoManager:UndoManager? = nil){
-        undoablyPerform("Set Background", with: undoManager){
+    func setBackground(_ background: EmojiArt.Background) {
+        undoablyPerform("Set Background") {
             emojiArt.setBackground(background)
         }
     }

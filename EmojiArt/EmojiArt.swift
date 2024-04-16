@@ -6,12 +6,13 @@
 //
 
 import Foundation
+import SwiftUI
 
 typealias Emoji=EmojiArt.Emoji
 
 struct EmojiArt:Codable{
     private(set) var emojis=[Emoji]()
-    private(set) var background:URL?
+    private(set) var background=Background.blank
     var id=UUID()
     
     struct Emoji:Identifiable,Codable{
@@ -28,6 +29,30 @@ struct EmojiArt:Codable{
         }
     }
     
+    enum Background:Codable,Equatable{
+        case blank
+        case url(URL)
+        case imageData(Data)
+        
+        var url:URL?{
+            switch self {
+            case .url(let url):
+                return url
+            default:
+                return nil
+            }
+        }
+        
+        var imageData:Data?{
+            switch self {
+            case .imageData(let imageData):
+                return imageData
+            default:
+                return nil
+            }
+        }
+    }
+    
     //MARK: - Intent
     private var emojiID=0
     
@@ -40,7 +65,15 @@ struct EmojiArt:Codable{
         emojis.remove(at: 0)
     }
     
-    mutating func setBackground(_ background:URL?){
+    mutating func setBackground(_ background:Background){
         self.background=background
+    }
+    
+    mutating func resize(){
+        
+    }
+    
+    mutating func move(){
+        
     }
 }

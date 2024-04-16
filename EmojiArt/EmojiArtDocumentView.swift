@@ -6,17 +6,17 @@
 //
 
 import SwiftUI
-import SwiftData
 
-extension Emoji:Transferable{
-    static var transferRepresentation: some TransferRepresentation {
-        ProxyRepresentation { Emoji(string: $0.string, position: $0.position, size: $0.size, id: $0.id) }
-    }
-}
+//extension Emoji:Transferable{
+//    static var transferRepresentation: some TransferRepresentation {
+//        ProxyRepresentation { Emoji(string: $0.string, position: $0.position, size: $0.size, id: $0.id) }
+//    }
+//}
 
 struct EmojiArtDocumentView: View {
     @ObservedObject var document:EmojiArtDocument
     @ObservedObject var paletteStoreStore:PaletteStoreStore
+    @ObservedObject var photoLibraryViewModel = PhotoLibraryViewModel()
     
     init(document: EmojiArtDocument) {
         self.document=document
@@ -28,6 +28,7 @@ struct EmojiArtDocumentView: View {
     @Environment(\.undoManager) private var undoManager
     
     @State private var showManager=false
+    @State private var showPhotoLibrary=false
     
     var body: some View {
         VStack(spacing:0) {
@@ -37,13 +38,50 @@ struct EmojiArtDocumentView: View {
                 .font(.system(size: emojisSize))
         }
         .toolbar{
-            AnimatedActionButton(title:"PaletteStore Manager"){
-                showManager=true
+            if UIDevice.current.userInterfaceIdiom == .pad{
+                Button{
+                    showPhotoLibrary=true
+                }label: {
+                    Image(systemName: "photo")
+                }
+                Button{
+                    showManager=true
+                }label: {
+                    Text("PaletteStore Manager")
+                }
+                UndoButton()
+            }else if UIDevice.current.userInterfaceIdiom == .phone{
+                UndoButton()
+                Button{
+                    
+                }label:{
+                    Image(systemName: "ellipsis.circle")
+                }
+                .contextMenu{
+                    AnimatedActionButton(title: "Gallery", systemImage: "photo") {
+                        showPhotoLibrary=true
+                    }
+                    AnimatedActionButton(title: "PaletteStore Manager", systemImage: "slider.vertical.3") {
+                        showManager=true
+                    }
+                }
             }
-            UndoButton()
         }
         .fullScreenCover(isPresented:$showManager){
             PaletteStoreManager(paletteStoreStore: paletteStoreStore)
+        }
+        .sheet(isPresented: $showPhotoLibrary){
+            PhotoLibrary() { photoJustTaken in
+                photoLibraryViewModel.handlePickedImage = photoJustTaken
+                showPhotoLibrary = false
+                if let imageData = photoJustTaken?.jpegData(compressionQuality: 1.0){
+                    document.setBackground(EmojiArt.Background.imageData(imageData))
+
+                }
+            }
+        }
+        .onAppear{
+            document.injectUndoManager(undoManager)
         }
     }
     
@@ -81,7 +119,7 @@ struct EmojiArtDocumentView: View {
                 documentContents(in: geometry)
                     .scaleEffect(zoom*gestureZoom)
                     .offset(pan+gesturePan)
-                if document.background.isFetching {
+                if document.backgroundFetchStatus.isFetching {
                     ProgressView()
                         .scaleEffect(2)
                         .tint(.cyan)
@@ -93,20 +131,22 @@ struct EmojiArtDocumentView: View {
                 drop(sturldatas,at:location,in:geometry)
             }
             .onTapGesture(count: 2){
-                zoomToFit(document.background.uiImage?.size, in: geometry)
+                zoomToFit(document.backgroundImage?.size, in: geometry)
             }
             //can't be onChange(of:document.background), bacause we only want to perform zoomToFit when uiImage changes.
-            .onChange(of: document.background.uiImage,initial: true){ oldUIImage,newUIImage  in
+            .onChange(of: document.backgroundImage,initial: true){ oldUIImage,newUIImage  in
                 zoomToFit(newUIImage?.size,in:geometry)
             }
-            .onChange(of: document.background.failedReason){
-                showSetBackgroundFailedAlert = (document.background.failedReason != nil)
+            .onChange(of: document.backgroundFetchStatus.failureReason){
+                showSetBackgroundFailedAlert = (document.backgroundFetchStatus.failureReason != nil)
             }
             .alert("Set Background",
                    isPresented: $showSetBackgroundFailedAlert,
-                   presenting: document.background.failedReason
+                   presenting: document.backgroundFetchStatus.failureReason
             ){ reason in
-                Button("OK",role:.cancel){}
+                Button("OK",role:.cancel){
+                    undoManager?.undo()
+                }
             }message: { reason in
                 Text(reason)
             }
@@ -139,10 +179,10 @@ struct EmojiArtDocumentView: View {
         for sturldata in sturldatas {
             switch sturldata {
             case .url(let url):
-                document.setBackground(url,with: undoManager)
+                document.setBackground(EmojiArt.Background.url(url))
                 return true
             case .string(let emoji):
-                document.addEmoji(emoji,at:emojiPosition(at:location,in:geometry),size:emojisSize/zoom,with: undoManager)
+                document.addEmoji(emoji,at:emojiPosition(at:location,in:geometry),size:emojisSize/zoom)
                 return true
             default:
                 break
@@ -154,14 +194,10 @@ struct EmojiArtDocumentView: View {
     @ViewBuilder
     private func documentContents(in geometry:GeometryProxy)->some View{
         //display background and show "Loading.." when EmojiArtDocument is downloading Image
-        Group{
-            if let uiImage=document.background.uiImage{
-                Image(uiImage: uiImage)
-            }else if let uiImage=document.oldBackground.uiImage, document.background.failedReason != nil {
-                Image(uiImage: uiImage)
-            }
+        if let uiImage=document.backgroundImage{
+            Image(uiImage: uiImage)
+                .position(Emoji.Position.zero.in(geometry))
         }
-        .position(Emoji.Position.zero.in(geometry))
         //display emojis dragged into doucmentBody
         ForEach(document.emojis){ emoji in
             Text(emoji.string)

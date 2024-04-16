@@ -75,7 +75,6 @@ struct UndoButton:View {
                     }
                     .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
                         showUndoPopover=true
-                        print(showUndoPopover)
                     }
                     .popover(isPresented: $showUndoPopover){
                         VStack{
@@ -164,6 +163,7 @@ enum Sturldata: Transferable {
     case string(String)
     case url(URL)
     case data(Data)
+    case uiImage(UIImage)
     
     init(url: URL) {
         // some URLs have the data for an image directly embedded in the URL itself
