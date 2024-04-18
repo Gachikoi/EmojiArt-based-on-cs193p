@@ -55,13 +55,7 @@ struct PaletteStoreEditor: View {
                     headerOfSectionOfEmojisView
                 }
                 .onChange(of:emojisToAdd){
-                    let filteredEmojisToAdd=emojisToAdd.filter({$0.isEmoji})
-                    guard filteredEmojisToAdd == emojisToAdd else{
-                        showAlertOfInputNonEmojiElement=true
-                        emojisToAdd=filteredEmojisToAdd
-                        return
-                    }
-                    palette.emojis=(emojisToAdd+palette.emojis).uniqued
+                    palette.emojis=(emojisToAdd.filter({$0.isEmoji})+palette.emojis).uniqued
                 }
                 .onSubmit {
                     emojisToAdd=""
@@ -75,6 +69,11 @@ struct PaletteStoreEditor: View {
                     focused = .name
                 }else {
                     focused = .add
+                }
+            }
+            .onDisappear{
+                if palette.name.isEmpty && palette.emojis.isEmpty{
+                    palette.name=getCurrentTime()
                 }
             }
             if !isFromList{
@@ -176,19 +175,10 @@ struct PaletteEditor: View {
                     headerOfSectionOfEmojisView
                 }
                 .onChange(of:emojisToAdd){
-                    let filteredEmojisToAdd=emojisToAdd.filter({$0.isEmoji})
-                    guard filteredEmojisToAdd == emojisToAdd else{
-                        showAlertOfInputNonEmojiElement=true
-                        emojisToAdd=filteredEmojisToAdd
-                        return
-                    }
-                    palette.emojis=(emojisToAdd+palette.emojis).uniqued
+                    palette.emojis=(emojisToAdd.filter({$0.isEmoji})+palette.emojis).uniqued
                 }
                 .onSubmit {
                     emojisToAdd=""
-                }
-                .alert("Cation!", isPresented: $showAlertOfInputNonEmojiElement){
-                    Text("Please only add emojis here")
                 }
             }
             .onAppear{
@@ -196,6 +186,12 @@ struct PaletteEditor: View {
                     focused = .name
                 }else {
                     focused = .add
+                }
+            }
+            .onDisappear{
+                if palette.name.isEmpty && palette.emojis.isEmpty{
+                    print(false)
+                    palette.name=getCurrentTime()
                 }
             }
             if !isFromList&&UIDevice.current.userInterfaceIdiom == .phone{

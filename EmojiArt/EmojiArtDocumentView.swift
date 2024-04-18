@@ -29,6 +29,7 @@ struct EmojiArtDocumentView: View {
         VStack(spacing:0) {
             documentBody
             PaletteChooser()
+                .id(paletteStoreStore.currentPaletteStore.id)
                 .environmentObject(paletteStoreStore.currentPaletteStore)
                 .font(.system(size: emojisSize))
         }

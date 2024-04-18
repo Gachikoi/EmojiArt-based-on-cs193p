@@ -33,6 +33,9 @@ struct PaletteList: View {
             .onDelete{ indexSet in
                 if indexSet.count != store.palettes.count{
                     store.palettes.remove(atOffsets: indexSet)
+                    if indexSet.first! < store.paletteIndex {
+                        store.paletteIndex-=1
+                    }
                 }else{
                     showAlert=true
                 }
@@ -43,11 +46,19 @@ struct PaletteList: View {
         }
         .navigationDestination(isPresented: $showEditor){
             PaletteStoreEditor(store: store,isFromList: true)
+                .id(store.palettes[store.paletteIndex].id)
                 .font(nil)
+                .onDisappear{
+                    if store.palettes[store.paletteIndex].name.isEmpty && store.palettes[store.paletteIndex].emojis.isEmpty{
+                        store.palettes[store.paletteIndex].name=getCurrentTime()
+                        print(true)
+                    }
+                }
         }
         .navigationDestination(for:Palette.ID.self){ paletteID in
             if let index=store.palettes.firstIndex(where: {$0.id==paletteID}){
                 PaletteEditor(palette: $store.palettes[index],isFromList:true)
+                    .id(paletteID)
                     .font(nil)
             }
         }
@@ -79,5 +90,13 @@ struct PaletteList: View {
             }message:{
                 Text("We need at least one Palette Remained")
             }
+    }
+    
+    func getCurrentTime() -> String {
+        let now = Date() // 获取当前时间
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss" // 设置日期格式
+        let formattedTime = formatter.string(from: now) // 将时间转换为指定格式的字符串
+        return formattedTime
     }
 }
