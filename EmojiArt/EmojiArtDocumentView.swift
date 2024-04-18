@@ -7,16 +7,11 @@
 
 import SwiftUI
 
-//extension Emoji:Transferable{
-//    static var transferRepresentation: some TransferRepresentation {
-//        ProxyRepresentation { Emoji(string: $0.string, position: $0.position, size: $0.size, id: $0.id) }
-//    }
-//}
-
 struct EmojiArtDocumentView: View {
     @ObservedObject var document:EmojiArtDocument
     @ObservedObject var paletteStoreStore:PaletteStoreStore
     @ObservedObject var photoLibraryViewModel = PhotoLibraryViewModel()
+    @Environment(\.colorScheme) private var colorScheme
     
     init(document: EmojiArtDocument) {
         self.document=document
@@ -25,7 +20,7 @@ struct EmojiArtDocumentView: View {
     
     @ScaledMetric private var emojisSize:CGFloat=40
     
-    @Environment(\.undoManager) private var undoManager
+    @Environment(\.undoManager) private var undoManager//为option类型
     
     @State private var showManager=false
     @State private var showPhotoLibrary=false
@@ -63,6 +58,22 @@ struct EmojiArtDocumentView: View {
                     }
                     AnimatedActionButton(title: "PaletteStore Manager", systemImage: "slider.vertical.3") {
                         showManager=true
+                    }
+                    if let undoManager{//一定要先let undoManager，否则会出错
+                        if undoManager.canUndo{
+                            Button{
+                                undoManager.undo()
+                            }label: {
+                                Text("Undo "+undoManager.undoActionName)
+                            }
+                        }
+                        if undoManager.canRedo{
+                            Button{
+                                undoManager.redo()
+                            }label: {
+                                Text("Redo "+undoManager.redoActionName)
+                            }
+                        }
                     }
                 }
             }
@@ -115,7 +126,11 @@ struct EmojiArtDocumentView: View {
     var documentBody:some View{
         GeometryReader{ geometry in
             ZStack{
-                Color.white
+                if colorScheme == .light{
+                    Color.white
+                }else{
+                    Color.black
+                }
                 documentContents(in: geometry)
                     .scaleEffect(zoom*gestureZoom)
                     .offset(pan+gesturePan)
@@ -127,8 +142,16 @@ struct EmojiArtDocumentView: View {
                 }
             }
             .gesture(panGesture.simultaneously(with: zoomGesture))
-            .dropDestination(for: Sturldata.self){ sturldatas,location in
-                drop(sturldatas,at:location,in:geometry)
+            .dropDestination(for: Droppable.self){ droppables,location in
+                for dropable in droppables{
+                    switch dropable{
+                    case .emoji(let emoji):
+                        return dropEmoji(emoji,at:location,in:geometry)
+                    case .sturldata(let sturldata):
+                        return dropSturldata(sturldata,at:location,in:geometry)
+                    }
+                }
+                return false
             }
             .onTapGesture(count: 2){
                 zoomToFit(document.backgroundImage?.size, in: geometry)
@@ -175,21 +198,27 @@ struct EmojiArtDocumentView: View {
         }
     }
     
-    private func drop(_ sturldatas:[Sturldata],at location:CGPoint,in geometry:GeometryProxy)->Bool{
-        for sturldata in sturldatas {
-            switch sturldata {
-            case .url(let url):
-                document.setBackground(EmojiArt.Background.url(url))
-                return true
-            case .string(let emoji):
-                document.addEmoji(emoji,at:emojiPosition(at:location,in:geometry),size:emojisSize/zoom)
-                return true
-            default:
-                break
-            }
-        }
-        return false
+    private func dropEmoji(_ emoji:Emoji,at location:CGPoint,in geometry:GeometryProxy)->Bool{
+        document.addEmoji(emoji.string, at: emojiPosition(at:location,in:geometry), size: CGFloat(emoji.size))
+        print(1)
+        return true
     }
+    
+    private func dropSturldata(_ sturldata:Sturldata,at location:CGPoint,in geometry:GeometryProxy)->Bool{
+        switch sturldata {
+        case .url(let url):
+            document.setBackground(EmojiArt.Background.url(url))
+            return true
+        case .string(let string):
+            document.addEmoji(string,at:emojiPosition(at:location,in:geometry),size:emojisSize/zoom)
+            return true
+        default:
+            print(0)
+            return false
+        }
+    }
+    
+    @State private var showEditableEmojiView:Emoji?
     
     @ViewBuilder
     private func documentContents(in geometry:GeometryProxy)->some View{
@@ -197,13 +226,103 @@ struct EmojiArtDocumentView: View {
         if let uiImage=document.backgroundImage{
             Image(uiImage: uiImage)
                 .position(Emoji.Position.zero.in(geometry))
+                .gesture(
+                    TapGesture(count: 2)
+                        .onEnded{
+                            zoomToFit(document.backgroundImage?.size, in: geometry)
+                        }
+                        .simultaneously(
+                            with: TapGesture(count: 3)
+                                .onEnded{
+                                    document.removeBackground()
+                                }
+                        )
+                )
         }
         //display emojis dragged into doucmentBody
         ForEach(document.emojis){ emoji in
-            Text(emoji.string)
-                .font(.system(size: CGFloat(emoji.size)))
-                .position(emoji.position.in(geometry))//transfer emoji.position to the View's true position
-                .draggable(emoji.string)
+            if showEditableEmojiView?.id != emoji.id{
+                Text(emoji.string)
+                    .font(.system(size: CGFloat(emoji.size)))
+                    .position(emoji.position.in(geometry))//transfer emoji.position to the View's true position
+                    .gesture(
+                        TapGesture(count: 3)
+                            .onEnded{
+                                document.removeEmoji(emoji)
+                            }
+                            .exclusively(
+                                before: TapGesture(count: 1)
+                                    .onEnded{
+                                        showEditableEmojiView=emoji
+                                    }
+                            )
+                    )
+            }else{
+                EditableEmojiView(emoji: emoji,document: document,externalZoom: zoom)
+                    .font(.system(size: CGFloat(emoji.size)))
+                    .position(emoji.position.in(geometry))//transfer emoji.position to the View's true position
+                    .gesture(
+                        TapGesture(count: 3)
+                            .onEnded{
+                                document.removeEmoji(emoji)
+                            }
+                            .exclusively(
+                                before: TapGesture(count: 1)
+                                    .onEnded{
+                                        showEditableEmojiView=nil
+                                    }
+                            )
+                    )
+            }
+        }
+    }
+    
+    struct EditableEmojiView:View{
+        var emoji:Emoji
+        var document:EmojiArtDocument
+        @State var externalZoom:CGFloat
+        
+        @State var zoom:CGFloat=1
+        @State var pan:CGOffset = .zero
+        @GestureState var gestureZoom:CGFloat=1
+        @GestureState var gesturePan:CGOffset = .zero
+        
+        var zoomGesture:some Gesture{
+            MagnificationGesture()
+                .updating($gestureZoom){ value ,gestureZoom, _ in
+                    gestureZoom=value
+                }
+                .onEnded{ value in
+                    zoom*=value
+                    document.resize(emoji,by:zoom)
+                    zoom=1
+                }
+        }
+        
+        var panGesture:some Gesture{
+            DragGesture()
+                .updating($gesturePan){ value, gesturePan, _ in
+                    gesturePan=value.translation
+                }
+                .onEnded{ value in
+                    pan+=value.translation
+                    document.move(emoji,by:pan)
+                    pan = .zero
+                }
+        }
+        
+        var body: some View{
+            ZStack{
+                Text(emoji.string)
+                    .background{
+                        Rectangle().stroke(lineWidth: 0.05*CGFloat(emoji.size)).foregroundStyle(.blue)
+                    }
+                    .scaleEffect(zoom*gestureZoom)
+                    .offset(pan+gesturePan)
+                    .gesture(panGesture.simultaneously(with: zoomGesture))
+                    .draggable(emoji)
+                
+            }
         }
     }
     

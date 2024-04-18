@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 typealias CGOffset=CGSize
 
@@ -68,55 +69,68 @@ struct UndoButton:View {
     var body: some View {
         if let undoManager {
             HStack{
-                Image(systemName: "arrow.uturn.backward.circle")
-                    .foregroundColor(.accentColor)
-                    .onTapGesture {
-                        undoManager.undo()
-                    }
-                    .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
-                        showUndoPopover=true
-                    }
-                    .popover(isPresented: $showUndoPopover){
-                        VStack{
-                            if !undoManager.canUndo {
-                                Text("Nothing to Undo")
-                            }else{
-                                Button{
-                                    undoManager.undo()
-                                    showUndoPopover=false
-                                }label: {
-                                    Text("Undo "+undoManager.undoActionName)
+                if UIDevice.current.userInterfaceIdiom == .pad{
+                    Image(systemName: "arrow.uturn.backward.circle")
+                        .foregroundColor(.accentColor)
+                        .onTapGesture {
+                            undoManager.undo()
+                        }
+                        .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
+                            showUndoPopover=true
+                        }
+                        .popover(isPresented: $showUndoPopover){
+                            VStack{
+                                if !undoManager.canUndo {
+                                    Text("Nothing to Undo")
+                                }else{
+                                    Button{
+                                        undoManager.undo()
+                                        showUndoPopover=false
+                                    }label: {
+                                        Text("Undo "+undoManager.undoActionName)
+                                    }
                                 }
                             }
+                            .padding()
+                            .frame(maxWidth: 280)
                         }
-                        .padding()
-                        .frame(maxWidth: 280)
-                    }
-                Image(systemName: "arrow.uturn.forward.circle")
-                    .foregroundColor(.accentColor)
-                    .onTapGesture {
-                        undoManager.redo()
-                    }
-                    .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
-                        showRedoPopover=true
-                        print(showRedoPopover)
-                    }
-                    .popover(isPresented: $showRedoPopover){
-                        VStack{
-                            if !undoManager.canRedo {
-                                Text("Nothing to Redo")
-                            }else{
-                                Button{
-                                    undoManager.redo()
-                                    showRedoPopover=false
-                                }label: {
-                                    Text("Redo "+undoManager.redoActionName)
+                    Image(systemName: "arrow.uturn.forward.circle")
+                        .foregroundColor(.accentColor)
+                        .onTapGesture {
+                            undoManager.redo()
+                        }
+                        .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
+                            showRedoPopover=true
+                            print(showRedoPopover)
+                        }
+                        .popover(isPresented: $showRedoPopover){
+                            VStack{
+                                if !undoManager.canRedo {
+                                    Text("Nothing to Redo")
+                                }else{
+                                    Button{
+                                        undoManager.redo()
+                                        showRedoPopover=false
+                                    }label: {
+                                        Text("Redo "+undoManager.redoActionName)
+                                    }
                                 }
                             }
+                            .padding()
+                            .frame(maxWidth: 280)
                         }
-                        .padding()
-                        .frame(maxWidth: 280)
-                    }
+                }else if UIDevice.current.userInterfaceIdiom == .phone{
+                    Image(systemName:"arrow.uturn.backward.circle" )
+                        .foregroundColor(.accentColor)
+                        .onTapGesture {
+                            undoManager.undo()
+                        }
+                    Image(systemName: "arrow.uturn.forward.circle")
+                        .foregroundColor(.accentColor)
+                        .onTapGesture {
+                            undoManager.redo()
+                        }
+                }
             }
         }
     }
@@ -155,15 +169,36 @@ struct AnimatedActionButton:View {
     }
 }
 
+//MARK: - about Droppable
+//Anything can be dropped in .emojiart
+
+enum Droppable:Transferable{
+    case emoji(Emoji)
+    case sturldata(Sturldata)
+    
+    init(emoji:Emoji) {
+        self = .emoji(emoji)
+    }
+    
+    init(sturldata:Sturldata){
+        self = .sturldata(sturldata)
+    }
+    
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation { Droppable(emoji: $0) }
+        ProxyRepresentation { Droppable(sturldata: $0) }
+    }
+}
+
 //MARK: - about Sturldata
 // a type which represents either a String, a URL or a Data
 // it implements Transferable by proxy
+// can't intergate Emoji in Sturldata because string, url and data conflict with Emoji.
 
 enum Sturldata: Transferable {
     case string(String)
     case url(URL)
     case data(Data)
-    case uiImage(UIImage)
     
     init(url: URL) {
         // some URLs have the data for an image directly embedded in the URL itself
@@ -188,12 +223,20 @@ enum Sturldata: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         ProxyRepresentation { Sturldata(string: $0) }
-        ProxyRepresentation { Sturldata(url: $0) }
+        ProxyRepresentation { Sturldata.url( $0) }
         ProxyRepresentation { Sturldata.data($0) }
     }
 }
 
-// the extensions below are just helpers for Sturldata
+extension Emoji:Transferable{
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .emoji)
+    }
+}
+
+extension UTType{
+    static let emoji=UTType(exportedAs: "Gach1koi.emoji")
+}
 
 extension URL {
     // some search engines give out a url which has yet another reference to the actual image url embedded in it

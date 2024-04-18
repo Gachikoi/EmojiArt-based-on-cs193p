@@ -27,15 +27,15 @@ extension UserDefaults{
 
 class PaletteStore:ObservableObject,Identifiable,Codable{
     var name:String
-    lazy var id=name
+    var id=UUID()
     
     var palettes:[Palette]{
         get{
-            UserDefaults.standard.palettes(forKey: name)
+            UserDefaults.standard.palettes(forKey: "\(id)")
         }
         set{
             if !newValue.isEmpty{
-                UserDefaults.standard.set(newValue, forKey: name)
+                UserDefaults.standard.set(newValue, forKey: "\(id)")
                 objectWillChange.send()
             }
         }
@@ -63,10 +63,10 @@ class PaletteStore:ObservableObject,Identifiable,Codable{
     
     static let builtins=[
         PaletteStore(name: "Main"),
-        PaletteStore(name: "Test1"),
-        PaletteStore(name: "Gach1koi"),
-        PaletteStore(name: "Shining"),
-        PaletteStore(name: "Backup")
+        PaletteStore(name: "Backup1"),
+        PaletteStore(name: "Backup2"),
+        PaletteStore(name: "Backup3"),
+        PaletteStore(name: "Backup4")
     ]
     
     init(name: String) {

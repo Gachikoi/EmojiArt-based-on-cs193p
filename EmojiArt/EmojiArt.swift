@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftUI
 
 typealias Emoji=EmojiArt.Emoji
 
@@ -61,19 +60,30 @@ struct EmojiArt:Codable{
         emojiID+=1
     }
     
-    mutating func removeEmoji(_ emoji:String){
-        emojis.remove(at: 0)
+    mutating func removeEmoji(_ emoji:Emoji){
+        if let index=emojis.firstIndex(where: {$0.id==emoji.id}){
+            emojis.remove(at: index)
+        }
     }
     
     mutating func setBackground(_ background:Background){
         self.background=background
     }
     
-    mutating func resize(){
-        
+    mutating func removeBackground(){
+        background = .blank
     }
     
-    mutating func move(){
-        
+    mutating func resize(_ emoji:Emoji,by zoom:CGFloat){
+        if let index=emojis.firstIndex(where: {$0.id==emoji.id}){
+            emojis[index].size=Int(Double(zoom)*Double(emojis[index].size))
+        }
+    }
+    
+    mutating func move(_ emoji:Emoji,by pan:CGOffset){
+        if let index=emojis.firstIndex(where: {$0.id==emoji.id}){
+            emojis[index].position.x+=Int(pan.width)
+            emojis[index].position.y-=Int(pan.height)
+        }
     }
 }

@@ -29,7 +29,7 @@ struct PaletteChooser:View {
         .padding(.horizontal)
         .clipped()
         .sheet(isPresented: $showEditor){
-            PaletteEditor(palette:$store.palettes[store.paletteIndex])
+            PaletteEditor(palette:$store.palettes[store.paletteIndex],showEditor: $showEditor)
                 .font(nil)
                 .onDisappear{
                     if store.palettes[store.paletteIndex].name.isEmpty && store.palettes[store.paletteIndex].emojis.isEmpty{
@@ -39,10 +39,11 @@ struct PaletteChooser:View {
         }
         .sheet(isPresented: $showList){
             NavigationStack{
-                PaletteList()
+                PaletteList(showList: $showList)
                     .font(nil)
             }
         }
+        
     }
     
     var chooser:some View{

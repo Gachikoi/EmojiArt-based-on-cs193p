@@ -9,6 +9,16 @@ import SwiftUI
 
 struct PaletteEditor: View {
     @Binding var palette:Palette
+    @Binding var showEditor:Bool
+    var isFromManager:Bool
+    var isFromList:Bool
+    
+    init(palette:Binding<Palette>,showEditor: Binding<Bool> = .constant(true),isFromManager:Bool = false,isFromList:Bool=false) {
+        _palette=palette
+        _showEditor=showEditor
+        self.isFromManager=isFromManager
+        self.isFromList=isFromList
+    }
     
     @State private var emojisToAdd=""
     
@@ -29,48 +39,59 @@ struct PaletteEditor: View {
     @FocusState private var focused:Focused?
     
     var body: some View {
-        Form{
-            Section{
-                TextField(palette.name,text: $palette.name)
-                    .font(.system(size: sectionTextSize))
-                    .focused($focused,equals: Focused.name)
-            }header:{
-                headerOfSectionOfNameView
-            }
-            Section{
-                TextField("Add Emojis Here", text: $emojisToAdd)
-                    .font(.system(size: sectionTextSize))
-                    .focused($focused,equals: Focused.add)
-                emojiDisplay
-            }header: {
-                headerOfSectionOfEmojisView
-            }
-            .onChange(of:emojisToAdd){
-                let filteredEmojisToAdd=emojisToAdd.filter({$0.isEmoji})
-                guard filteredEmojisToAdd == emojisToAdd else{
-                    showAlertOfInputNonEmojiElement=true
-                    emojisToAdd=filteredEmojisToAdd
-                    return
+        ZStack(alignment:.topTrailing){
+            Form{
+                Section{
+                    TextField(palette.name,text: $palette.name)
+                        .font(.system(size: sectionTextSize))
+                        .focused($focused,equals: Focused.name)
+                }header:{
+                    headerOfSectionOfNameView
+                }
+                Section{
+                    TextField("Add Emojis Here", text: $emojisToAdd)
+                        .font(.system(size: sectionTextSize))
+                        .focused($focused,equals: Focused.add)
+                    emojiDisplay
+                }header: {
+                    headerOfSectionOfEmojisView
+                }
+                .onChange(of:emojisToAdd){
+                    let filteredEmojisToAdd=emojisToAdd.filter({$0.isEmoji})
+                    guard filteredEmojisToAdd == emojisToAdd else{
+                        showAlertOfInputNonEmojiElement=true
+                        emojisToAdd=filteredEmojisToAdd
+                        return
+                    }
+                }
+                .onSubmit {
+                    palette.emojis=(emojisToAdd+palette.emojis).uniqued
+                    emojisToAdd=""
+                }
+                .alert("Cation!", isPresented: $showAlertOfInputNonEmojiElement){
+                    Text("Please only add emojis here")
                 }
             }
-            .onSubmit {
-                palette.emojis=(emojisToAdd+palette.emojis).uniqued
-                emojisToAdd=""
+            .onAppear{
+                if palette.name.isEmpty{
+                    focused = .name
+                }else {
+                    focused = .add
+                }
             }
-            .alert("Cation!", isPresented: $showAlertOfInputNonEmojiElement){
-                Text("Please only add emojis here")
+            .onDisappear{
+                if palette.name.isEmpty && palette.emojis.isEmpty{
+                    palette.name="Default"+" "+getCurrentTime()
+                }
             }
-        }
-        .onAppear{
-            if palette.name.isEmpty{
-                focused = .name
-            }else {
-                focused = .add
-            }
-        }
-        .onDisappear{
-            if palette.name.isEmpty && palette.emojis.isEmpty{
-                palette.name="Default"+" "+getCurrentTime()
+            if !isFromManager && !isFromList{
+                Button(role:.cancel){
+                    showEditor=false
+                }label:{
+                    Text("Cancel")
+                }
+                .padding(.top)
+                .padding(.horizontal)
             }
         }
     }
@@ -111,15 +132,4 @@ struct PaletteEditor: View {
             }
         }
     }
-}
-
-#Preview {
-    struct Preview:View {
-        @State private var palette=PaletteStore(name: "paletteeditor").palettes.first!
-        var body:some View{
-            PaletteEditor(palette: $palette)
-        }
-    }
-    
-    return Preview()
 }

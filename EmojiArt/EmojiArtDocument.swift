@@ -153,8 +153,8 @@ class EmojiArtDocument:ReferenceFileDocument{
         }
     }
     
-    func removeEmoji(_ emoji:String){
-        undoablyPerform("Remove \(emoji)"){
+    func removeEmoji(_ emoji:Emoji){
+        undoablyPerform("Remove \(emoji.string)"){
             emojiArt.removeEmoji(emoji)
         }
     }
@@ -162,6 +162,24 @@ class EmojiArtDocument:ReferenceFileDocument{
     func setBackground(_ background: EmojiArt.Background) {
         undoablyPerform("Set Background") {
             emojiArt.setBackground(background)
+        }
+    }
+    
+    func removeBackground(){
+        undoablyPerform("Remove Background") {
+            emojiArt.removeBackground()
+        }
+    }
+    
+    func resize(_ emoji:Emoji,by zoom:CGFloat){
+        undoablyPerform("Resize \(emoji.string)") {
+            emojiArt.resize(emoji,by:zoom)
+        }
+    }
+    
+    func move(_ emoji:Emoji,by pan:CGOffset){
+        undoablyPerform("Move \(emoji.string)") {
+            emojiArt.move(emoji,by:pan)
         }
     }
 }
