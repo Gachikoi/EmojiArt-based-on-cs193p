@@ -14,7 +14,7 @@ extension UserDefaults{
            let decodedStores=try? JSONDecoder().decode([PaletteStore].self, from: jsonData){
             return decodedStores
         }else{
-            return PaletteStore.builtins
+            return []
         }
     }
     
@@ -70,5 +70,6 @@ class PaletteStoreStore:ObservableObject{
             self.stores=PaletteStore.builtins
             self.currentPaletteStore=PaletteStore.builtins.first!
         }
+        
     }
 }

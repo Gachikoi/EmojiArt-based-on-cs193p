@@ -12,6 +12,7 @@ struct PaletteChooser:View {
 
     @State private var showEditor=false
     @State private var showList=false
+    @State private var showAlert=false
     
     @ScaledMetric private var paletteNameSize:CGFloat=30
 
@@ -31,11 +32,6 @@ struct PaletteChooser:View {
         .sheet(isPresented: $showEditor){
             PaletteEditor(palette:$store.palettes[store.paletteIndex],showEditor: $showEditor)
                 .font(nil)
-                .onDisappear{
-                    if store.palettes[store.paletteIndex].name.isEmpty && store.palettes[store.paletteIndex].emojis.isEmpty{
-                        store.palettes.remove(at: store.paletteIndex)
-                    }
-                }
         }
         .sheet(isPresented: $showList){
             NavigationStack{
@@ -43,7 +39,13 @@ struct PaletteChooser:View {
                     .font(nil)
             }
         }
-        
+        .alert(
+            "Delete Palette",
+            isPresented: $showAlert){
+                Button("OK", role: .cancel){}
+            }message:{
+                Text("We need at least one Palette Remained")
+            }
     }
     
     var chooser:some View{
@@ -63,7 +65,11 @@ struct PaletteChooser:View {
                 showList=true
             }
             AnimatedActionButton(title:"Delete",systemImage: "minus.circle",role: .destructive){
-                store.palettes.remove(at: store.paletteIndex)
+                if store.palettes.count>1{
+                    store.palettes.remove(at: store.paletteIndex)
+                }else{
+                    showAlert=true
+                }
             }
         }
     }
