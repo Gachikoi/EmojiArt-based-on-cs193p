@@ -60,9 +60,6 @@ struct PaletteStoreEditor: View {
                 .onSubmit {
                     emojisToAdd=""
                 }
-                .alert("Cation!", isPresented: $showAlertOfInputNonEmojiElement){
-                    Text("Please only add emojis here")
-                }
             }
             .onAppear{
                 if palette.name.isEmpty{
