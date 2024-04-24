@@ -5,20 +5,29 @@
 //  Created by 落殇 on 2024/4/16.
 //
 
-import Foundation
 import SwiftUI
 import PhotosUI
 
 struct PhotoLibrary: UIViewControllerRepresentable {
-    typealias UIViewControllerType = PHPickerViewController
+    var handlePickedImage: (UIImage?) -> Void
     
-    private var delegate: PHPickerViewControllerDelegate
-    
-    init(handlePickedImage: @escaping (UIImage?) -> Void) {
-        delegate = Delegate(handlePickedImage: handlePickedImage)
+    func makeCoordinator() -> Coordinator{
+        Coordinator(handlePickedImage: handlePickedImage)
     }
     
-    class Delegate: PHPickerViewControllerDelegate {
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration(photoLibrary: .shared())
+        config.filter = PHPickerFilter.images
+        let controller = PHPickerViewController(configuration: config)
+        controller.delegate = context.coordinator
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {
+        // do nothing
+    }
+    
+    class Coordinator:NSObject, PHPickerViewControllerDelegate{
         private var handlePickedImage: (UIImage?) -> Void
         
         init(handlePickedImage: @escaping (UIImage?) -> Void) {
@@ -39,23 +48,5 @@ struct PhotoLibrary: UIViewControllerRepresentable {
             }
         }
     }
-    
-    func makeUIViewController(context: Context) -> PHPickerViewController {
-        var config = PHPickerConfiguration(photoLibrary: .shared())
-        config.filter = PHPickerFilter.images
-        
-        let controller = PHPickerViewController(configuration: config)
-        controller.delegate = delegate
-        
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {
-        // do nothing
-    }
-}
-
-class PhotoLibraryViewModel: ObservableObject {
-    @Published var handlePickedImage: UIImage? = nil
 }
 
