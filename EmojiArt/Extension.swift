@@ -8,6 +8,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+//MARK: - extensions to types
+
 typealias CGOffset=CGSize
 
 extension CGOffset{
@@ -59,79 +61,36 @@ extension Collection {
     }
 }
 
+//MARK: - extensions to views
 
-struct UndoButton:View {
-    @Environment(\.undoManager) private var undoManager
+extension View {
+    // L15 modifier which replaces uses of .toolbar
+    // L15 in horizontally compact environments, it puts a single button in the toolbar
+    // L15 with a context menu containing the items
+    // L15 (only works on ViewBuilder content, not ToolbarItems content)
+    func compactableToolbar<Content>(@ViewBuilder content: () -> Content) -> some View where Content: View {
+        self.toolbar {
+            content().modifier(CompactableIntoContextMenu())
+        }
+    }
+}
+
+struct CompactableIntoContextMenu: ViewModifier {
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var compact: Bool { horizontalSizeClass == .compact }
     
-    @State private var showUndoPopover=false
-    @State private var showRedoPopover=false
-    
-    var body: some View {
-        if let undoManager {
-            HStack{
-                if UIDevice.current.userInterfaceIdiom == .pad{
-                    Image(systemName: "arrow.uturn.backward.circle")
-                        .foregroundColor(.accentColor)
-                        .onTapGesture {
-                            undoManager.undo()
-                        }
-                        .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
-                            showUndoPopover=true
-                        }
-                        .popover(isPresented: $showUndoPopover){
-                            VStack{
-                                if !undoManager.canUndo {
-                                    Text("Nothing to Undo")
-                                }else{
-                                    Button{
-                                        undoManager.undo()
-                                        showUndoPopover=false
-                                    }label: {
-                                        Text("Undo "+undoManager.undoActionName)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .frame(maxWidth: 280)
-                        }
-                    Image(systemName: "arrow.uturn.forward.circle")
-                        .foregroundColor(.accentColor)
-                        .onTapGesture {
-                            undoManager.redo()
-                        }
-                        .onLongPressGesture(minimumDuration: 0.05,maximumDistance: 100){
-                            showRedoPopover=true
-                            print(showRedoPopover)
-                        }
-                        .popover(isPresented: $showRedoPopover){
-                            VStack{
-                                if !undoManager.canRedo {
-                                    Text("Nothing to Redo")
-                                }else{
-                                    Button{
-                                        undoManager.redo()
-                                        showRedoPopover=false
-                                    }label: {
-                                        Text("Redo "+undoManager.redoActionName)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .frame(maxWidth: 280)
-                        }
-                }else if UIDevice.current.userInterfaceIdiom == .phone{
-                    Image(systemName:"arrow.uturn.backward.circle" )
-                        .foregroundColor(.accentColor)
-                        .onTapGesture {
-                            undoManager.undo()
-                        }
-                    Image(systemName: "arrow.uturn.forward.circle")
-                        .foregroundColor(.accentColor)
-                        .onTapGesture {
-                            undoManager.redo()
-                        }
-                }
+    func body(content: Content) -> some View {
+        if compact {
+            Button {
+                
+            } label: {
+                Image(systemName: "ellipsis.circle")
             }
+            .contextMenu {
+                content
+            }
+        } else {
+            content
         }
     }
 }
@@ -190,6 +149,18 @@ enum Droppable:Transferable{
     }
 }
 
+//MARK: - Emoji to implement Transferable Protocol
+
+extension Emoji:Transferable{
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .emoji)
+    }
+}
+
+extension UTType{
+    static let emoji=UTType(exportedAs: "Gach1koi.emoji")
+}
+
 //MARK: - about Sturldata
 // a type which represents either a String, a URL or a Data
 // it implements Transferable by proxy
@@ -226,16 +197,6 @@ enum Sturldata: Transferable {
         ProxyRepresentation { Sturldata.url( $0) }
         ProxyRepresentation { Sturldata.data($0) }
     }
-}
-
-extension Emoji:Transferable{
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .emoji)
-    }
-}
-
-extension UTType{
-    static let emoji=UTType(exportedAs: "Gach1koi.emoji")
 }
 
 extension URL {

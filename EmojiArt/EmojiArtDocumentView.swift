@@ -10,7 +10,6 @@ import SwiftUI
 struct EmojiArtDocumentView: View {
     @ObservedObject var document:EmojiArtDocument
     @ObservedObject var paletteStoreStore:PaletteStoreStore
-    @ObservedObject var photoLibraryViewModel = PhotoLibraryViewModel()
     @Environment(\.colorScheme) private var colorScheme
     
     init(document: EmojiArtDocument) {
@@ -33,50 +32,24 @@ struct EmojiArtDocumentView: View {
                 .environmentObject(paletteStoreStore.currentPaletteStore)
                 .font(.system(size: emojisSize))
         }
-        .toolbar{
-            if UIDevice.current.userInterfaceIdiom == .pad{
-                Button{
-                    showPhotoLibrary=true
-                }label: {
-                    Image(systemName: "photo")
-                }
-                Button{
-                    showManager=true
-                }label: {
-                    Text("PaletteStore Manager")
-                }
-                UndoButton()
-            }else if UIDevice.current.userInterfaceIdiom == .phone{
-                UndoButton()
-                Button{
-                    
-                }label:{
-                    Image(systemName: "ellipsis.circle")
-                }
-                .contextMenu{
-                    AnimatedActionButton(title: "Gallery", systemImage: "photo") {
-                        showPhotoLibrary=true
-                    }
-                    AnimatedActionButton(title: "PaletteStore Manager", systemImage: "slider.vertical.3") {
-                        showManager=true
-                    }
-                    if let undoManager{//一定要先let undoManager，否则会出错
-                        if undoManager.canUndo{
-                            Button{
-                                undoManager.undo()
-                            }label: {
-                                Text("Undo "+undoManager.undoActionName)
-                            }
-                        }
-                        if undoManager.canRedo{
-                            Button{
-                                undoManager.redo()
-                            }label: {
-                                Text("Redo "+undoManager.redoActionName)
-                            }
-                        }
+        .compactableToolbar{
+            if let undoManager = undoManager {
+                if undoManager.canUndo {
+                    Button(undoManager.undoActionName, systemImage: "arrow.uturn.backward"){
+                        undoManager.undo()
                     }
                 }
+                if undoManager.canRedo {
+                    Button(undoManager.redoActionName, systemImage: "arrow.uturn.forward"){
+                        undoManager.redo()
+                    }
+                }
+            }
+            AnimatedActionButton(title: "Gallery", systemImage: "photo") {
+                showPhotoLibrary=true
+            }
+            AnimatedActionButton(title: "PaletteStore Manager", systemImage: "slider.vertical.3") {
+                showManager=true
             }
         }
         .fullScreenCover(isPresented:$showManager){
@@ -84,7 +57,6 @@ struct EmojiArtDocumentView: View {
         }
         .sheet(isPresented: $showPhotoLibrary){
             PhotoLibrary() { photoJustTaken in
-                photoLibraryViewModel.handlePickedImage = photoJustTaken
                 showPhotoLibrary = false
                 if let imageData = photoJustTaken?.jpegData(compressionQuality: 1.0){
                     document.setBackground(EmojiArt.Background.imageData(imageData))
@@ -201,7 +173,6 @@ struct EmojiArtDocumentView: View {
     
     private func dropEmoji(_ emoji:Emoji,at location:CGPoint,in geometry:GeometryProxy)->Bool{
         document.addEmoji(emoji.string, at: emojiPosition(at:location,in:geometry), size: CGFloat(emoji.size))
-        print(1)
         return true
     }
     
@@ -213,9 +184,9 @@ struct EmojiArtDocumentView: View {
         case .string(let string):
             document.addEmoji(string,at:emojiPosition(at:location,in:geometry),size:emojisSize/zoom)
             return true
-        default:
-            print(0)
-            return false
+        case .data(let data):
+            document.setBackground(EmojiArt.Background.imageData(data))
+            return true
         }
     }
     
